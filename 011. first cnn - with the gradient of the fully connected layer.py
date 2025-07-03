@@ -1,4 +1,4 @@
-#basically I just rewrite all the code the Qwen neural network wrote me, but I ask clarifying questions to understand everything and be able to recreate the code myself
+#Basically I just rewrite all the code the Qwen neural network wrote me, but I ask clarifying questions to understand everything and be able to recreate the code myself
 import numpy as np
 from skimage import io, color, transform
 
