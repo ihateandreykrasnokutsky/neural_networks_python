@@ -40,3 +40,11 @@ def cross_entropy_loss(probs, label):
     return -np.log(probs[label]+1e-10)
 
 #-----------------------OK, next time writing the backward pass functions!------------------------------------------------------
+
+def grad_fully_connected(x,weights,probs,label):
+    dlogits=probs.copy
+    dlogits[label]-=1
+    dfc_weights=np.outer(dlogits,x)
+    dfc_bias=dlogits
+    dx=np.dot(weights.T,dlogits)
+    return dfc_weights, dfc_bias, dx
