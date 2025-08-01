@@ -48,3 +48,6 @@ def grad_fully_connected(x,weights,probs,label):
     dfc_bias=dlogits
     dx=np.dot(weights.T,dlogits)
     return dfc_weights, dfc_bias, dx
+
+def grad_max_pool (dpool_out, from_relu_shape, size=2, stride=2):
+    
