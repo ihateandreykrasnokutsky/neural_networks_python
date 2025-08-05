@@ -49,5 +49,9 @@ def grad_fully_connected(x,weights,probs,label):
     dx=np.dot(weights.T,dlogits)
     return dfc_weights, dfc_bias, dx
 
+def unflatten_gradient (flat_grad, shape=(13,13)):
+    return flat_grad.reshape(shape)
+
+
 def grad_max_pool (dpool_out, from_relu_shape, size=2, stride=2):
     
