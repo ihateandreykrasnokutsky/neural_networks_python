@@ -53,5 +53,8 @@ def unflatten_gradient (flat_grad, shape=(13,13)):
     return flat_grad.reshape(shape)
 
 
-def grad_max_pool (dpool_out, from_relu_shape, size=2, stride=2):
+def grad_max_pool (dpool_out, relu_out, size=2, stride=2):
+    d_relu=np.zeros_like(dpool_out)
+    ph, pw=dpool_out.shape
+    
     
