@@ -39,7 +39,7 @@ def softmax(x):
 def cross_entropy_loss(probs, label):
     return -np.log(probs[label]+1e-10)
 
-#-----------------------OK, next time writing the backward pass functions!------------------------------------------------------
+#-----------------------BACKWARD PASS FUNCTIONS------------------------------------------------------
 
 def grad_fully_connected(x,weights,probs,label):
     dlogits=probs.copy
@@ -56,5 +56,12 @@ def unflatten_gradient (flat_grad, shape=(13,13)):
 def grad_max_pool (dpool_out, relu_out, size=2, stride=2):
     d_relu=np.zeros_like(dpool_out)
     ph, pw=dpool_out.shape
-    
-    
+    for i in range (ph):
+        for j in range (pw):
+            #get the refion from the relu output
+            region=relu_out[i*stride:i*stride+size,j*stride:j*stride+size]
+            max_pos=np.unravel_index(np.argmax(region),region.shape)
+            #set gradient only for the max position
+            d_relu[i*stride+max_pos[0],j*stride+max_pos[1]]=dpool_out[i,j]
+    return d_relu
+
