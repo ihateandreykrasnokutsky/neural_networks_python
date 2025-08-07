@@ -54,7 +54,7 @@ def unflatten_gradient (flat_grad, shape=(13,13)):
 
 
 def grad_max_pool (dpool_out, relu_out, size=2, stride=2):
-    d_relu=np.zeros_like(dpool_out)
+    d_relu=np.zeros_like(relu_out)
     ph, pw=dpool_out.shape
     for i in range (ph):
         for j in range (pw):
@@ -65,3 +65,4 @@ def grad_max_pool (dpool_out, relu_out, size=2, stride=2):
             d_relu[i*stride+max_pos[0],j*stride+max_pos[1]]=dpool_out[i,j]
     return d_relu
 
+def grad_relu
