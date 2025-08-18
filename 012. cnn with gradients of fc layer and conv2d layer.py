@@ -58,7 +58,7 @@ def grad_max_pool (dpool_out, relu_out, size=2, stride=2):
     ph, pw=dpool_out.shape
     for i in range (ph):
         for j in range (pw):
-            #get the refion from the relu output
+            #get the region from the relu output
             region=relu_out[i*stride:i*stride+size,j*stride:j*stride+size]
             max_pos=np.unravel_index(np.argmax(region),region.shape)
             #set gradient only for the max position
