@@ -13,7 +13,7 @@ def conv2d(image,kernel):
     return output
 
 def relu(x):
-    return np.max(0,x)
+    return np.maximum(0,x)
 
 def max_pooling(x, size=2, stride=2):
     h,w=x.shape
@@ -22,11 +22,11 @@ def max_pooling(x, size=2, stride=2):
     output=np.zeros((out_h,out_w))
     for i in range(out_h):
         for j in range (out_w):
-            region=x[i*size:i*size+stride, j*size:j*size+stride]
+            region=x[i*stride:i*stride+size, j*stride:j*stride+size]
             output[i,j]=np.max(region)
     return output
 
-def faltten(x):
+def flatten(x):
     return x.flatten()
 
 def fully_connected(x, weight, bias):
@@ -34,7 +34,7 @@ def fully_connected(x, weight, bias):
 
 def softmax(x):
     exps=np.exp(x-np.max(x)) #preventing numerical instability
-    return exps/np,sum(exps)
+    return exps/np.sum(exps)
 
 def cross_entropy_loss(probs, label):
     return -np.log(probs[label]+1e-10)
@@ -42,7 +42,7 @@ def cross_entropy_loss(probs, label):
 #-----------------------BACKWARD PASS FUNCTIONS------------------------------------------------------
 
 def grad_fully_connected(x,weights,probs,label):
-    dlogits=probs.copy
+    dlogits=probs.copy()
     dlogits[label]-=1
     dfc_weights=np.outer(dlogits,x)
     dfc_bias=dlogits
@@ -65,4 +65,11 @@ def grad_max_pool (dpool_out, relu_out, size=2, stride=2):
             d_relu[i*stride+max_pos[0],j*stride+max_pos[1]]=dpool_out[i,j]
     return d_relu
 
-def grad_relu
+def grad_relu(d_after_relu, pre_relu):
+    d_relu=d_after_relu.copy()
+    d_relu[pre_relu<=0]=0
+    return d_relu
+
+def grad_conv()
+    
+# CONTINUE TO DO DEBUGGING, i STOPPED AT dlogits=probs.copy()
