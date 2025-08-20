@@ -70,6 +70,4 @@ def grad_relu(d_after_relu, pre_relu):
     d_relu[pre_relu<=0]=0
     return d_relu
 
-def grad_conv()
-    
-# CONTINUE TO DO DEBUGGING, i STOPPED AT dlogits=probs.copy()
+def grad_conv(image, d_conv_out, kernel_shape):
