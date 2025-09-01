@@ -17,8 +17,8 @@ def relu(x):
 
 def max_pooling(x, size=2, stride=2):
     h,w=x.shape
-    out_h=h//size
-    out_w=w//size
+    out_h = (h - size + stride) // stride #ChatGPT gave me a generic formula for this, that works for any size and stride, but it wasn't intuitive, so I changed it
+    out_w = (w - size + stride) // stride
     output=np.zeros((out_h,out_w))
     for i in range(out_h):
         for j in range (out_w):
@@ -33,7 +33,7 @@ def fully_connected(x, weight, bias):
     return np.dot(weight,x)+bias
 
 def softmax(x):
-    exps=np.exp(x-np.max(x)) #preventing numerical instability
+    exps=np.exp(x-np.max(x)) #preventing numerical instability, e.g. e^-100 is better than e^100, because 1st is almost 0 (one hot), and 2nd is very high.
     return exps/np.sum(exps)
 
 def cross_entropy_loss(probs, label):
@@ -49,9 +49,8 @@ def grad_fully_connected(x,weights,probs,label):
     dx=np.dot(weights.T,dlogits)
     return dfc_weights, dfc_bias, dx
 
-def unflatten_gradient (flat_grad, shape=(13,13)):
+def unflatten_gradient (flat_grad, shape): #ChatGPT changed the constant size (13,13) to the variable size
     return flat_grad.reshape(shape)
-
 
 def grad_max_pool (dpool_out, relu_out, size=2, stride=2):
     d_relu=np.zeros_like(relu_out)
