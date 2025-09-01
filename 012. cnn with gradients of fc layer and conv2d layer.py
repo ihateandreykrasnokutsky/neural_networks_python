@@ -61,12 +61,12 @@ def grad_max_pool (dpool_out, relu_out, size=2, stride=2):
             region=relu_out[i*stride:i*stride+size,j*stride:j*stride+size]
             max_pos=np.unravel_index(np.argmax(region),region.shape)
             #set gradient only for the max position
-            d_relu[i*stride+max_pos[0],j*stride+max_pos[1]]=dpool_out[i,j]
+            d_relu[i*stride+max_pos[0],j*stride+max_pos[1]]+=dpool_out[i,j]
     return d_relu
 
 def grad_relu(d_after_relu, pre_relu):
-    d_relu=d_after_relu.copy()
-    d_relu[pre_relu<=0]=0
-    return d_relu
+    d=d_after_relu.copy()
+    d[pre_relu<=0]=0
+    return d
 
 def grad_conv(image, d_conv_out, kernel_shape):
