@@ -70,3 +70,40 @@ def grad_relu(d_after_relu, pre_relu):
     return d
 
 def grad_conv(image, d_conv_out, kernel_shape):
+    dkernel=np.zeros(kernel_shape)
+    kh,kw=kernel_shape
+    dh,dw=d_conv_out.shape
+    for i in range (dh):
+        for j in range (dw):
+            region=image[i:i+kh,j:j+kw]
+            dkernel+=region*d_conv_out[i,j]
+    return dkernel
+
+#Tiny training demo
+np.random.seed(42)
+
+image=np.random.rand(28,28)
+true_label=3
+
+kernel=np.random.randn(3,3)*0.01
+fc_in_dim=13*13 #28=>26=>13
+num_classes=10
+fc_weights=np.random.randn(num_classes, fc_in_dim)*0.01
+fc_bias=np.zeros(num_classes)
+
+learning_rate=0.01
+
+#forward pass
+conv_out=conv2d(image,kernel)
+relu_out=relu(conv_out)
+pool_out=max_pooling(relu_out,size=2,stride=2)
+flat=flatten(pool_out)
+logits=fully_connected(flat,fc_weights,fc_bias)
+probs=softmax(logits)
+loss=cross_entropy_loss(probs,true_label)
+
+print("Initial prediction: ", np.argmax(probs))
+print("Loss: ", float(loss))
+
+#backward pass
+
