@@ -1,9 +1,17 @@
 #I need to use 1-hot labels, because I use softmax and cross-entropy loss
+#input: 4 random images from each of the 4 categories => random.shuffle them => vertical stack => conv2d => a stack of (luckily) 4 one-hot labels
+#chatgpt says that it's problematic, because 
 
 import numpy as np
+import random
 from skimage.io import imread, imsave
 from skimage.transform import resize
 
+input_image_number=20
+bows=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\bow_"+str(i)+".png") for i in range (input_image_number)] #a list of bows
+pistols=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\pistol_"+str(i)+".png") for i in range (input_image_number)]
+rifles=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\rifle_"+str(i)+".png") for i in range (input_image_number)]
+shotguns=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\shotgun_"+str(i)+".png") for i in range (input_image_number)]
 image=np.random.rand(28,28)
 true_label=3
 kernel=np.random.randn(3,3)*0.01
@@ -89,9 +97,18 @@ def grad_conv(image, d_conv_out, kernel_shape):
             dkernel+=region*d_conv_out[i,j]
     return dkernel
 
+#creating image stack and label stack
+bow=bows[random.randint(0,input_image_number-1)]
+pistol=pistols[random.randint(0,input_image_number-1)]
+rifle=rifles[random.randint(0,input_image_number-1)]
+shotgun=shotguns[random.randint(0,input_image_number-1)]
+weapons=[bow,pistol,rifle,shotgun]
+np.random.shuffle(weapons)
+weapons_stacked=np.vstack(weapons)
+
 #Tiny training demo
 #forward pass
-conv_out=conv2d(image,kernel)
+conv_out=conv2d(weapons_stacked,kernel)
 relu_out=relu(conv_out)
 pool_out=max_pooling(relu_out,size=2,stride=2)
 flat=flatten(pool_out)
