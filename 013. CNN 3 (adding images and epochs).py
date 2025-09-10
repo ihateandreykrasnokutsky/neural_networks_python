@@ -1,6 +1,6 @@
 #I need to use 1-hot labels, because I use softmax and cross-entropy loss
 #input: 4 random images from each of the 4 categories => random.shuffle them => vertical stack => conv2d => a stack of (luckily) 4 one-hot labels
-#chatgpt says that it's problematic, because 
+#need to add np.random.permutation to choose a random gun array: perm = np.random.permutation(len(weapons))
 
 import numpy as np
 import random
