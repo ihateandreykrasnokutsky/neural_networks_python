@@ -6,21 +6,19 @@ import numpy as np
 import random
 from skimage.io import imread, imsave
 from skimage.transform import resize
+import time
 
+comp_size=500
 input_image_number=20
-bows=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\bow_"+str(i)+".png") for i in range (input_image_number)] #a list of bows
-pistols=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\pistol_"+str(i)+".png") for i in range (input_image_number)]
-rifles=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\rifle_"+str(i)+".png") for i in range (input_image_number)]
-shotguns=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\shotgun_"+str(i)+".png") for i in range (input_image_number)]
-image=np.random.rand(28,28)
-true_label=3
 kernel=np.random.randn(3,3)*0.01
-fc_in_dim=13*13 #28=>26=>13
-num_classes=10
+num_classes=4
+h_transformations=(comp_size*num_classes-3+1)//2
+w_transformations=(comp_size-3+1)//2
+fc_x_dim=h_transformations*w_transformations
+fc_in_dim=fc_x_dim
 fc_weights=np.random.randn(num_classes, fc_in_dim)*0.01
 fc_bias=np.zeros(num_classes)
 learning_rate=3
-comp_size=300
 
 #additional functions
 def image_to_matrix(pic_path,size=(comp_size,comp_size)):
@@ -28,8 +26,31 @@ def image_to_matrix(pic_path,size=(comp_size,comp_size)):
     matrix=resize(matrix,size,anti_aliasing=True,preserve_range=True)
     return matrix
 
+bows=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\bow_"+str(i)+".png") for i in range (input_image_number)] #a list of bows
+pistols=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\pistol_"+str(i)+".png") for i in range (input_image_number)]
+rifles=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\rifle_"+str(i)+".png") for i in range (input_image_number)]
+shotguns=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\shotgun_"+str(i)+".png") for i in range (input_image_number)]
+
+#creating image stack and label stack
+bow=bows[random.randint(0,input_image_number-1)]
+pistol=pistols[random.randint(0,input_image_number-1)]
+rifle=rifles[random.randint(0,input_image_number-1)]
+shotgun=shotguns[random.randint(0,input_image_number-1)]
+weapons=[bow,pistol,rifle,shotgun]
+labels=[0,1,0,0]#1 for pistols
+perm=np.random.permutation(len(weapons))
+weapons_shuffled=[weapons[i] for i in perm]
+labels_shuffled=[labels[i] for i in perm]
+image=np.vstack(weapons_shuffled) #40x10
+labels=np.hstack(labels_shuffled) #4x1
+true_label=np.argmax(labels) #CE loss expects an index of the true label, not the array of all labels
+
+
+print("Shuffled labels:", labels_shuffled)
+print("True label:", true_label)
+
 #forward pass functions
-def conv2d(image,kernel):
+def conv2d(image,kernel): #38x8
     h,w=image.shape
     kh,kw=kernel.shape
     out_h=h-kh+1
@@ -40,9 +61,9 @@ def conv2d(image,kernel):
             region=image[i:i+kh, j:j+kw]
             output[i,j]=np.sum(region*kernel)
     return output
-def relu(x):
+def relu(x): #38x8
     return np.maximum(0,x)
-def max_pooling(x, size=2, stride=2):
+def max_pooling(x, size=2, stride=2): #19x4
     h,w=x.shape
     out_h = (h - size + stride) // stride #ChatGPT gave me a generic formula for this, that works for any size and stride, but it wasn't intuitive, so I changed it
     out_w = (w - size + stride) // stride
@@ -52,7 +73,7 @@ def max_pooling(x, size=2, stride=2):
             region=x[i*stride:i*stride+size, j*stride:j*stride+size]
             output[i,j]=np.max(region)
     return output
-def flatten(x):
+def flatten(x): # 76x
     return x.flatten()
 def fully_connected(x, weight, bias):
     return np.dot(weight,x)+bias
@@ -97,24 +118,24 @@ def grad_conv(image, d_conv_out, kernel_shape):
             dkernel+=region*d_conv_out[i,j]
     return dkernel
 
-#creating image stack and label stack
-bow=bows[random.randint(0,input_image_number-1)]
-pistol=pistols[random.randint(0,input_image_number-1)]
-rifle=rifles[random.randint(0,input_image_number-1)]
-shotgun=shotguns[random.randint(0,input_image_number-1)]
-weapons=[bow,pistol,rifle,shotgun]
-np.random.shuffle(weapons)
-weapons_stacked=np.vstack(weapons)
-
 #Tiny training demo
 #forward pass
-conv_out=conv2d(weapons_stacked,kernel)
+start=time.time()
+print ("Start time: ", start)
+conv_out=conv2d(image,kernel)
+print ("conv2d time: ", time.time()-start)
 relu_out=relu(conv_out)
+print ("relu time: ", time.time()-start)
 pool_out=max_pooling(relu_out,size=2,stride=2)
+print ("max_pooling time: ", time.time()-start)
 flat=flatten(pool_out)
+print ("flatten time: ", time.time()-start)
 logits=fully_connected(flat,fc_weights,fc_bias)
+print ("fully_connected time: ", time.time()-start)
 probs=softmax(logits)
+print ("softmax: ", time.time()-start)
 loss=cross_entropy_loss(probs,true_label)
+print ("cross_entropy_loss time: ", time.time()-start)
 
 print("Initial prediction: ", np.argmax(probs))
 print("Loss: ", float(loss))
