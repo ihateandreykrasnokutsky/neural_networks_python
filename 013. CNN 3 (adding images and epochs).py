@@ -119,23 +119,15 @@ def grad_conv(image, d_conv_out, kernel_shape):
     return dkernel
 
 #Tiny training demo
-#forward pass
 start=time.time()
-print ("Start time: ", start)
+#forward pass
 conv_out=conv2d(image,kernel)
-print ("conv2d time: ", time.time()-start)
 relu_out=relu(conv_out)
-print ("relu time: ", time.time()-start)
 pool_out=max_pooling(relu_out,size=2,stride=2)
-print ("max_pooling time: ", time.time()-start)
 flat=flatten(pool_out)
-print ("flatten time: ", time.time()-start)
 logits=fully_connected(flat,fc_weights,fc_bias)
-print ("fully_connected time: ", time.time()-start)
 probs=softmax(logits)
-print ("softmax: ", time.time()-start)
 loss=cross_entropy_loss(probs,true_label)
-print ("cross_entropy_loss time: ", time.time()-start)
 
 print("Initial prediction: ", np.argmax(probs))
 print("Loss: ", float(loss))
