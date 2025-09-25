@@ -1,6 +1,8 @@
 #I need to use 1-hot labels, because I use softmax and cross-entropy loss
 #input: 4 random images from each of the 4 categories => random.shuffle them => vertical stack => conv2d => a stack of (luckily) 4 one-hot labels
 #need to add np.random.permutation to choose a random gun array: perm = np.random.permutation(len(weapons))
+#what if, to simplify the network, I'll feed it only 1 image (but random one from a random type), and make it to define its type? And not feed it an imagine with 4 random guns?
+
 
 import numpy as np
 import random
@@ -8,7 +10,8 @@ from skimage.io import imread, imsave
 from skimage.transform import resize
 import time
 
-comp_size=500
+loss=0
+comp_size=64
 input_image_number=20
 kernel=np.random.randn(3,3)*0.01
 num_classes=4
@@ -19,6 +22,7 @@ fc_in_dim=fc_x_dim
 fc_weights=np.random.randn(num_classes, fc_in_dim)*0.01
 fc_bias=np.zeros(num_classes)
 learning_rate=3
+epochs=1000
 
 #additional functions
 def image_to_matrix(pic_path,size=(comp_size,comp_size)):
@@ -44,10 +48,6 @@ labels_shuffled=[labels[i] for i in perm]
 image=np.vstack(weapons_shuffled) #40x10
 labels=np.hstack(labels_shuffled) #4x1
 true_label=np.argmax(labels) #CE loss expects an index of the true label, not the array of all labels
-
-
-print("Shuffled labels:", labels_shuffled)
-print("True label:", true_label)
 
 #forward pass functions
 def conv2d(image,kernel): #38x8
@@ -118,31 +118,51 @@ def grad_conv(image, d_conv_out, kernel_shape):
             dkernel+=region*d_conv_out[i,j]
     return dkernel
 
-#Tiny training demo
-start=time.time()
-#forward pass
-conv_out=conv2d(image,kernel)
-relu_out=relu(conv_out)
-pool_out=max_pooling(relu_out,size=2,stride=2)
-flat=flatten(pool_out)
-logits=fully_connected(flat,fc_weights,fc_bias)
-probs=softmax(logits)
-loss=cross_entropy_loss(probs,true_label)
+start=time.time() #time variables
+prev_time=time.time()
 
-print("Initial prediction: ", np.argmax(probs))
-print("Loss: ", float(loss))
+for epoch in range(epochs):
+    
+    #randomizing labels  and inputs (like in the beginning of the program)
+    if loss<0.5:
+        perm=np.random.permutation(len(weapons))
+        weapons_shuffled=[weapons[i] for i in perm]
+        labels_shuffled=[labels[i] for i in perm]
+        image=np.vstack(weapons_shuffled) #40x10
+        labels=np.hstack(labels_shuffled) #4x1
+        true_label=np.argmax(labels) #CE loss expects an index of the true label, not the array of all labels
+    
+    #forward pass
+    conv_out=conv2d(image,kernel)
+    relu_out=relu(conv_out)
+    pool_out=max_pooling(relu_out,size=2,stride=2)
+    flat=flatten(pool_out)
+    logits=fully_connected(flat,fc_weights,fc_bias)
+    probs=softmax(logits)
+    loss=cross_entropy_loss(probs,true_label)
 
-#backward pass
-dfc_W, dfc_b, d_flat=grad_fully_connected(flat, fc_weights, probs, true_label)
-d_pool=unflatten_gradient(d_flat, pool_out.shape)
-d_relu_from_pool=grad_max_pool(d_pool, relu_out, size=2, stride=2)
-d_conv_out=grad_relu(d_relu_from_pool, conv_out)
-dkernel=grad_conv(image, d_conv_out, kernel.shape)
+    #backward pass
+    dfc_W, dfc_b, d_flat=grad_fully_connected(flat, fc_weights, probs, true_label)
+    d_pool=unflatten_gradient(d_flat, pool_out.shape)
+    d_relu_from_pool=grad_max_pool(d_pool, relu_out, size=2, stride=2)
+    d_conv_out=grad_relu(d_relu_from_pool, conv_out)
+    dkernel=grad_conv(image, d_conv_out, kernel.shape)
 
-#sgd param update
-fc_weights-=dfc_W*learning_rate
-fc_bias-=dfc_b*learning_rate
-kernel-=dkernel*learning_rate
+    #sgd param update
+    fc_weights-=dfc_W*learning_rate
+    fc_bias-=dfc_b*learning_rate
+    kernel-=dkernel*learning_rate
+
+    if epoch%10==0 or epoch==epochs-1:
+        print(f"epoch {epoch}:")
+        print (f"time: {time.time()-prev_time}")
+        print("shuffled labels:", labels_shuffled)
+        print("true label:", true_label)
+        print(f"prediction: {np.argmax(probs)}")
+        print(f"loss: {float(loss)}")
+        print ("---")
+    prev_time=time.time()
+
 
 #re-forward
 conv_out=conv2d(image,kernel)
@@ -153,7 +173,9 @@ logits=fully_connected(flat,fc_weights,fc_bias)
 probs=softmax(logits)
 loss=cross_entropy_loss(probs,true_label)
 
-print ("After one update:")
-print ("Prediction: ", np.argmax(probs))
-print ("Loss: ", float(loss))
+print ("inference:")
+print("shuffled labels:", labels_shuffled)
+print("true label:", true_label)
+print ("prediction: ", np.argmax(probs))
+print ("loss: ", float(loss))
 
