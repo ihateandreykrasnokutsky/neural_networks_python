@@ -4,6 +4,8 @@
 #What if, to simplify the network, I'll feed it only 1 image (but random one from a random type), and make it to define its type? And not feed it an imagine with 4 random guns?
 #I added 1 input image and 1 output label for this image, BUT it needs one-hot label! Like [0,1,0,0], not [0] or [1]. Or it will work? I need to think.
 #Ok, I added the one-hot labels! Should work fine. Now I need to feed them to the network.
+#I think I need to add more fc layers. The network just doesn't understand the task at all. Pretty much random result after each epoch.
+#Need to do backpropagation through the 4 fc layers now. There should be different function definitions for fc layers. 1st (from top) includes gradient of softmax, but further fc layers shouldn't have the gradient of the softmax!
 
 import numpy as np
 import random
@@ -11,19 +13,27 @@ from skimage.io import imread, imsave
 from skimage.transform import resize
 import time
 
+i=0
 loss=0
 comp_size=64
-input_image_number=20
+input_image_number=1
+hid_nrn=50
 kernel=np.random.randn(3,3)*0.01
 num_classes=4
-h_transformations=(comp_size*num_classes-3+1)//2
+h_transformations=(comp_size-3+1)//2
 w_transformations=(comp_size-3+1)//2
 fc_x_dim=h_transformations*w_transformations
 fc_in_dim=fc_x_dim
-fc_weights=np.random.randn(num_classes, fc_in_dim)*0.01
-fc_bias=np.zeros(num_classes)
-learning_rate=3
-epochs=1000
+fc_w_1=np.random.randn(hid_nrn, fc_in_dim)*0.01
+fc_b_1=np.zeros(hid_nrn)
+fc_w_2=np.random.randn(hid_nrn, hid_nrn)*0.01
+fc_b_2=np.zeros(hid_nrn)
+fc_w_3=np.random.randn(hid_nrn, hid_nrn)*0.01
+fc_b_3=np.zeros(hid_nrn)
+fc_w_4=np.random.randn(num_classes, hid_nrn)*0.01
+fc_b_4=np.zeros(num_classes)
+learning_rate=1
+epochs=10000
 
 #additional functions
 def image_to_matrix(pic_path,size=(comp_size,comp_size)):
@@ -38,13 +48,20 @@ shotguns=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\shot
 weapons=bows+pistols+rifles+shotguns
 indices=([0]*len(bows)+[1]*len(pistols)+[2]*len(rifles)+[3]*len(shotguns)) #indices for each weapon picture!
 choice=random.randint(0,len(weapons)-1) #random choice for both weapons and indices
-weapon=weapons[choice] #random picture
+image=weapons[choice] #random picture (64,64)
 index=indices[choice] #0/1/2/3
-one_hot_labels=([0]*4) #virgin labels
-one_hot_labels[index]=1 #one-hot labels with added true label, so it should be like [0,0,1,0]
+labels=([0]*4) #virgin labels [0,0,0,0], a row vector
+labels[index]=1 #one-hot labels with added true label, so it should be like [0,0,1,0]
+true_label=np.argmax(labels) #or just 1
+
+print(f"indices={indices}")
+print(f"choice={choice}")
+print(f"index={index}")
+print(f"labels={labels}")
+
 
 #forward pass functions
-def conv2d(image,kernel): #38x8
+def conv2d(image,kernel):
     h,w=image.shape
     kh,kw=kernel.shape
     out_h=h-kh+1
@@ -55,9 +72,9 @@ def conv2d(image,kernel): #38x8
             region=image[i:i+kh, j:j+kw]
             output[i,j]=np.sum(region*kernel)
     return output
-def relu(x): #38x8
+def relu(x):
     return np.maximum(0,x)
-def max_pooling(x, size=2, stride=2): #19x4
+def max_pooling(x, size=2, stride=2):
     h,w=x.shape
     out_h = (h - size + stride) // stride #ChatGPT gave me a generic formula for this, that works for any size and stride, but it wasn't intuitive, so I changed it
     out_w = (w - size + stride) // stride
@@ -67,7 +84,7 @@ def max_pooling(x, size=2, stride=2): #19x4
             region=x[i*stride:i*stride+size, j*stride:j*stride+size]
             output[i,j]=np.max(region)
     return output
-def flatten(x): # 76x
+def flatten(x):
     return x.flatten()
 def fully_connected(x, weight, bias):
     return np.dot(weight,x)+bias
@@ -78,13 +95,20 @@ def cross_entropy_loss(probs, label):
     return -np.log(probs[label]+1e-10)
 
 #backward pass functions
-def grad_fully_connected(x,weights,probs,label):
+def grad_fully_connected_last(input_below,weights,probs,label):
     dlogits=probs.copy()
     dlogits[label]-=1
-    dfc_weights=np.outer(dlogits,x)
+    dfc_weights=np.outer(dlogits,input_below)
     dfc_bias=dlogits
     dx=np.dot(weights.T,dlogits)
     return dfc_weights, dfc_bias, dx
+
+def grad_fully_connected(input_below,weights,grad_above):
+    dfc_weights=np.outer(grad_above,input_below)
+    dfc_bias=grad_above
+    dx=np.dot(weights.T,grad_above)
+    return dfc_weights, dfc_bias, dx
+
 def unflatten_gradient (flat_grad, shape): #ChatGPT changed the constant size (13,13) to the variable size
     return flat_grad.reshape(shape)
 def grad_max_pool (dpool_out, relu_out, size=2, stride=2):
@@ -116,23 +140,24 @@ start=time.time() #time variables
 prev_time=time.time()
 
 for epoch in range(epochs):
-    
-    #randomizing labels  and inputs (like in the beginning of the program)
-    if loss<0.5:
-        perm=np.random.permutation(len(weapons))
-        weapons_shuffled=[weapons[i] for i in perm]
-        labels_shuffled=[labels[i] for i in perm]
-        image=np.vstack(weapons_shuffled) #40x10
-        labels=np.hstack(labels_shuffled) #4x1
-        true_label=np.argmax(labels) #CE loss expects an index of the true label, not the array of all labels
-    
+    if loss<0.1: #randomizing labels  and inputs (like in the beginning of the program)
+        choice=random.randint(0,len(weapons)-1)
+        image=weapons[choice]
+        index=indices[choice]
+        labels=([0]*4)
+        labels[index]=1
+        true_label=np.argmax(labels)
+
     #forward pass
     conv_out=conv2d(image,kernel)
     relu_out=relu(conv_out)
     pool_out=max_pooling(relu_out,size=2,stride=2)
     flat=flatten(pool_out)
-    logits=fully_connected(flat,fc_weights,fc_bias)
-    probs=softmax(logits)
+    logits1=fully_connected(flat,fc_w_1,fc_b_1)
+    logits2=fully_connected(logits1,fc_w_2,fc_b_2)
+    logits3=fully_connected(logits2,fc_w_3,fc_b_3)
+    logits4=fully_connected(logits3,fc_w_4,fc_b_4)
+    probs=softmax(logits4)
     loss=cross_entropy_loss(probs,true_label)
 
     #backward pass
@@ -147,29 +172,39 @@ for epoch in range(epochs):
     fc_bias-=dfc_b*learning_rate
     kernel-=dkernel*learning_rate
 
-    if epoch%10==0 or epoch==epochs-1:
+    if epoch%100==0 or epoch==epochs-1:
         print(f"epoch {epoch}:")
         print (f"time: {time.time()-prev_time}")
-        print("shuffled labels:", labels_shuffled)
-        print("true label:", true_label)
         print(f"prediction: {np.argmax(probs)}")
+        print(f"correct class: {np.argmax(labels)}")
         print(f"loss: {float(loss)}")
         print ("---")
-    prev_time=time.time()
+        prev_time=time.time()
 
 
-#re-forward
-conv_out=conv2d(image,kernel)
-relu_out=relu(conv_out)
-pool_out=max_pooling(relu_out,size=2,stride=2)
-flat=flatten(pool_out)
-logits=fully_connected(flat,fc_weights,fc_bias)
-probs=softmax(logits)
-loss=cross_entropy_loss(probs,true_label)
-
+#inference
 print ("inference:")
-print("shuffled labels:", labels_shuffled)
-print("true label:", true_label)
-print ("prediction: ", np.argmax(probs))
-print ("loss: ", float(loss))
+print ("---")
+
+for i in range(5): #randomize inference input and test 5 times
+    choice=random.randint(0,len(weapons)-1)
+    image=weapons[choice]
+    index=indices[choice]
+    labels=([0]*4)
+    labels[index]=1
+    true_label=np.argmax(labels)
+
+    conv_out=conv2d(image,kernel)
+    relu_out=relu(conv_out)
+    pool_out=max_pooling(relu_out,size=2,stride=2)
+    flat=flatten(pool_out)
+    logits=fully_connected(flat,fc_weights,fc_bias)
+    probs=softmax(logits)
+    loss=cross_entropy_loss(probs,true_label)
+
+    print (f"inference {i}")
+    print(f"prediction: {np.argmax(probs)}")
+    print(f"correct class: {np.argmax(labels)}")
+    print(f"loss: {float(loss)}")
+    print ("---")
 
