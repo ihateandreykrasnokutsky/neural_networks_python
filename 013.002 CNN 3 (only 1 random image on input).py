@@ -22,7 +22,7 @@ loss=1
 comp_size=200
 input_image_number=1
 hid_nrn=50
-kernel=np.random.randn(3,3)*0.01
+kernel=np.random.randn(10,3,3)*np.sqrt(2/(3*3)) #he init
 num_classes=4
 h_transformations=(comp_size-3+1)//2
 w_transformations=(comp_size-3+1)//2
@@ -59,28 +59,30 @@ labels[index]=1 #one-hot labels with added true label, so it should be like [0,0
 true_label=np.argmax(labels) #or just 1
 
 #forward pass functions
-def conv2d(image,kernel):
+def conv2d_multi(image,kernel): #multi because  I added many kernels
     h,w=image.shape
-    kh,kw=kernel.shape
+    num_kernels,kh,kw=kernel.shape
     out_h=h-kh+1
     out_w=w-kw+1
-    output=np.zeros((out_h,out_w))
-    for i in range(out_h):
-        for j in range(out_w):
-            region=image[i:i+kh, j:j+kw]
-            output[i,j]=np.sum(region*kernel)
+    output=np.zeros((num_kernels,out_h,out_w))
+    for k in range(num_kernels):
+        for i in range(out_h):
+            for j in range(out_w):
+                region=image[i:i+kh, j:j+kw]
+                output[k,i,j]=np.sum(region*kernel[k])
     return output
 def relu(x):
     return np.maximum(0,x)
 def max_pooling(x, size=2, stride=2):
-    h,w=x.shape
+    num_kernels,h,w=x.shape
     out_h = (h - size + stride) // stride #ChatGPT gave me a generic formula for this, that works for any size and stride, but it wasn't intuitive, so I changed it
     out_w = (w - size + stride) // stride
-    output=np.zeros((out_h,out_w))
-    for i in range(out_h):
-        for j in range (out_w):
-            region=x[i*stride:i*stride+size, j*stride:j*stride+size]
-            output[i,j]=np.max(region)
+    output=np.zeros((num_kernels,out_h,out_w))
+    for k in range(num_kernels):
+        for i in range(out_h):
+            for j in range (out_w):
+                region=x[k,i*stride:i*stride+size, j*stride:j*stride+size]
+                output[k,i,j]=np.max(region)
     return output
 def flatten(x):
     return x.flatten()
@@ -109,27 +111,29 @@ def unflatten_gradient (flat_grad, shape): #ChatGPT changed the constant size (1
     return flat_grad.reshape(shape)
 def grad_max_pool (dpool_out, relu_out, size=2, stride=2):
     d_relu=np.zeros_like(relu_out)
-    ph, pw=dpool_out.shape
-    for i in range (ph):
-        for j in range (pw):
-            #get the region from the relu output
-            region=relu_out[i*stride:i*stride+size,j*stride:j*stride+size]
-            max_pos=np.unravel_index(np.argmax(region),region.shape)
-            #set gradient only for the max position
-            d_relu[i*stride+max_pos[0],j*stride+max_pos[1]]+=dpool_out[i,j]
+    num_kernels,ph,pw=dpool_out.shape
+    for k in range(num_kernels):
+        for i in range (ph):
+            for j in range (pw):
+                #get the region from the relu output
+                region=relu_out[k,i*stride:i*stride+size,j*stride:j*stride+size]
+                max_pos=np.unravel_index(np.argmax(region),region.shape)
+                #set gradient only for the max position
+                d_relu[k,i*stride+max_pos[0],j*stride+max_pos[1]]=dpool_out[k,i,j] #no need for +=, because I don't overlap the pooling windows
     return d_relu
 def grad_relu(d_after_relu, pre_relu):
     d=d_after_relu.copy()
     d[pre_relu<=0]=0
     return d
-def grad_conv(image, d_conv_out, kernel_shape):
-    dkernel=np.zeros(kernel_shape)
-    kh,kw=kernel_shape
-    dh,dw=d_conv_out.shape
-    for i in range (dh):
-        for j in range (dw):
-            region=image[i:i+kh,j:j+kw]
-            dkernel+=region*d_conv_out[i,j]
+def grad_conv2d_multi(image, d_conv_out, kernel_shape):
+    num_kernels,kh,kw=kernel_shape
+    dkernel=np.zeros((num_kernels,kh,kw))
+    dk,dh,dw=d_conv_out.shape
+    for k in range (dk):
+        for i in range (dh):
+            for j in range (dw):
+                region=image[i:i+kh,j:j+kw]
+                dkernel[k]+=region*d_conv_out[k,i,j]
     return dkernel
 
 start=time.time() #time variables
