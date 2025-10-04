@@ -7,7 +7,7 @@
 #I think I need to add more fc layers. The network just doesn't understand the task at all. Pretty much random result after each epoch.
 #Need to do backpropagation through the 4 fc layers now. There should be different function definitions for fc layers. 1st (from top) includes gradient of softmax, but further fc layers shouldn't have the gradient of the softmax!
 #Need many convolutional+pooling layers (as chatgpt adivced) or bette a multi-layered kernel! The program now works fine. Sometimes the convergence is very slow, but often it's very reliable and steady. But it has overfitting! It's noticable on the inference data.
-
+#with many kernels in one layer it works and even generalizes well! 400 eopchs are enough. Though with mistakes. Added L2 regularization.
 
 import numpy as np
 import random
@@ -19,15 +19,16 @@ input_image_number_test=3
 learned_in=1
 i=0
 loss=1
-comp_size=200
+comp_size=64
 input_image_number=1
-hid_nrn=50
-kernel=np.random.randn(10,3,3)*np.sqrt(2/(3*3)) #he init
+hid_nrn=10
+num_kernels=10
+kernel=np.random.randn(num_kernels,3,3)*np.sqrt(2/(3*3)) #he init
 num_classes=4
 h_transformations=(comp_size-3+1)//2
 w_transformations=(comp_size-3+1)//2
 fc_x_dim=h_transformations*w_transformations
-fc_in_dim=fc_x_dim
+fc_in_dim=fc_x_dim*num_kernels
 fc_w1=np.random.randn(hid_nrn, fc_in_dim)/np.sqrt(fc_in_dim)
 fc_b1=np.zeros(hid_nrn)
 fc_w2=np.random.randn(hid_nrn, hid_nrn)/np.sqrt(hid_nrn)
@@ -37,7 +38,7 @@ fc_b3=np.zeros(hid_nrn)
 fc_w4=np.random.randn(num_classes, hid_nrn)/np.sqrt(hid_nrn)
 fc_b4=np.zeros(num_classes)
 learning_rate=0.001
-epochs=1000
+epochs=400
 
 #additional functions
 def image_to_matrix(pic_path,size=(comp_size,comp_size)):
@@ -140,21 +141,21 @@ start=time.time() #time variables
 prev_time=time.time()
 
 for epoch in range(epochs):
-    if loss<1e-1: #randomizing labels  and inputs (like in the beginning of the program)
+    if loss<0.5: #randomizing labels  and inputs (like in the beginning of the program)
         choice=random.randint(0,len(weapons)-1)
         image=weapons[choice]
         index=indices[choice]
         labels=([0]*4)
         labels[index]=1
         true_label=np.argmax(labels)
-        print (f"learned in {learned_in} epochs")
+        print (f"epoch {epoch}, learned in {learned_in} epochs")
         print ("---")
         learned_in=0
     
     learned_in+=1
 
     #forward pass
-    conv_out=conv2d(image,kernel)
+    conv_out=conv2d_multi(image,kernel)
     relu_out=relu(conv_out)
     pool_out=max_pooling(relu_out,size=2,stride=2)
     flat=flatten(pool_out)
@@ -163,7 +164,8 @@ for epoch in range(epochs):
     z3=fully_connected(z2,fc_w3,fc_b3)
     z4=fully_connected(z3,fc_w4,fc_b4)
     probs=softmax(z4)
-    loss=cross_entropy_loss(probs,true_label)
+    main_loss=cross_entropy_loss(probs,true_label)
+    loss=main_loss+0.001*np.sum(kernel**2) #L2 regularization
 
     #backward pass
     dfc_w4, dfc_b4, d_z3=grad_softmax_fully_connected(z3,fc_w4,probs,true_label)
@@ -173,7 +175,7 @@ for epoch in range(epochs):
     d_pool=unflatten_gradient(d_flat, pool_out.shape)
     d_relu_from_pool=grad_max_pool(d_pool, relu_out, size=2, stride=2)
     d_conv_out=grad_relu(d_relu_from_pool, conv_out)
-    dkernel=grad_conv(image, d_conv_out, kernel.shape)
+    dkernel=grad_conv2d_multi(image, d_conv_out, kernel.shape)
 
     #sgd param update
     fc_w1-=dfc_w1*learning_rate
@@ -186,7 +188,7 @@ for epoch in range(epochs):
     fc_b4-=dfc_b4*learning_rate
     kernel-=dkernel*learning_rate
 
-    if epoch%100==0 or epoch==epochs-1:
+    if epoch%10==0 or epoch==epochs-1:
          print(f"epoch {epoch}:")
          print (f"time: {time.time()-prev_time}")
          print(f"prediction: {np.argmax(probs)}")
@@ -215,7 +217,7 @@ for i in range(5): #randomize inference input and test 5 times
     labels_test[index_test]=1
     true_label_test=np.argmax(labels_test)
 
-    conv_out=conv2d(image_test,kernel)
+    conv_out=conv2d_multi(image_test,kernel)
     relu_out=relu(conv_out)
     pool_out=max_pooling(relu_out,size=2,stride=2)
     flat=flatten(pool_out)
