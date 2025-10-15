@@ -22,7 +22,7 @@ loss=1
 comp_size=64
 input_image_number=1
 hid_nrn=10
-num_kernels=10
+num_kernels=20
 kernel=np.random.randn(num_kernels,3,3)*np.sqrt(2/(3*3)) #he init
 num_classes=4
 h_transformations=(comp_size-3+1)//2
@@ -141,7 +141,7 @@ start=time.time() #time variables
 prev_time=time.time()
 
 for epoch in range(epochs):
-    if loss<0.5: #randomizing labels  and inputs (like in the beginning of the program)
+    if loss<0.1: #randomizing labels  and inputs (like in the beginning of the program)
         choice=random.randint(0,len(weapons)-1)
         image=weapons[choice]
         index=indices[choice]
@@ -208,7 +208,7 @@ rifles_test=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\r
 shotguns_test=[image_to_matrix(r"D:\Pictures\machine_learning_pictures\guns_data\shotgun_test_"+str(i)+".png") for i in range (input_image_number_test)]
 weapons_test=bows_test+pistols_test+rifles_test+shotguns_test
 
-for i in range(5): #randomize inference input and test 5 times
+for i in range(20): #randomize inference input and test 5 times
     choice_test=random.randint(0,len(weapons_test)-1)
     image_test=weapons_test[choice_test]
     indices_test=([0]*len(bows_test)+[1]*len(pistols_test)+[2]*len(rifles_test)+[3]*len(shotguns_test))
