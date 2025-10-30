@@ -11,4 +11,7 @@ def tanh(x):
 
 def conv_transpose2d(x,weight,stride=2,padding=1):
     C_in,H,W=x.shape
+    C_in_w,C_out,kH,kW=weight.shape
+    assert C_in==C_in_w, "Input channels must match weight channels"
+
     
