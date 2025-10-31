@@ -14,4 +14,12 @@ def conv_transpose2d(x,weight,stride=2,padding=1):
     C_in_w,C_out,kH,kW=weight.shape
     assert C_in==C_in_w, "Input channels must match weight channels"
 
+    #compute output size
+    H_out=kH+(H-1)*stride-2*padding
+    W_out=kW+(W-1)*stride-2*padding
+    out=np.zeros((C_out,H_out,W_out))
+
+    
+
+
     
