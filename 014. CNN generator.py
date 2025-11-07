@@ -1,6 +1,9 @@
 #make a CNN that generates a picture
 #deepseek said that I can use the same weights for covolution and deconvolution (it's my idea, isn't it cool?), and that it's a solid approach
 #reached the tanh(x) line, understanding well everything
+ #adding the padding AFTER the cycle, because if we do it IN the cycle, then the kernel can't be applied without going out of edges of the output. We could cut the kernel inside, but damn that's mouthful/cumbersome (in terms of the amount of code) approach
+#It works! And I understand it. The next step is the actual image generation, using this structure. It seems like nothing difficult or unknown (yet), basically forward pass and backprop through FC and transposed concoluton.
+#OUTPUT: Output image's shape:  (3, 32, 32)
 
 import numpy as np
 
@@ -16,14 +19,16 @@ def conv_transpose2d(x,weight,stride=2,padding=1):
     assert C_in==C_in_w, "Input channels must match weight channels"
 
     #compute output size
-    H_out=kH+(H-1)*stride-2*padding
-    W_out=kW+(W-1)*stride-2*padding
+    H_out=kH+(H-1)*stride
+    W_out=kW+(W-1)*stride
     out=np.zeros((C_out,H_out,W_out))
     for c_in in range(C_in):
         for c_out in range(C_out):
             for i in range(H):
                 for j in range(W):
-                    out[c_out,i*stride:i*stride+kH,j*stride:j*stride+kW]=x[c_in,i,j]*weight[c_in,c_out]
+                    out[c_out,i*stride:i*stride+kH,j*stride:j*stride+kW]+=x[c_in,i,j]*weight[c_in,c_out,:,:]
+    if padding>0:
+        out=out[:,padding:-padding,padding:-padding]
     return out
 class CNNGenerator:
     def __init__(self,latent_dim=100):
@@ -44,6 +49,14 @@ class CNNGenerator:
         x=conv_transpose2d(x,self.ct3_weight) #to 3x32x32
         x=tanh(x) #this gives out pixels in range [-1,1], so you need to transfrom it to [0,1] or [0,255], if you want a real image
         return x
+    
+#example usage
+latent_dim=100
+z=np.random.randn(latent_dim)
+generator=CNNGenerator(latent_dim)
+fake_image=generator.forward(z)
+
+print ("Output image's shape: ",fake_image.shape)
     
 
 
