@@ -1,7 +1,7 @@
 #make a CNN that generates a picture
 #deepseek said that I can use the same weights for covolution and deconvolution (it's my idea, isn't it cool?), and that it's a solid approach
 #reached the tanh(x) line, understanding well everything
- #adding the padding AFTER the cycle, because if we do it IN the cycle, then the kernel can't be applied without going out of edges of the output. We could cut the kernel inside, but damn that's mouthful/cumbersome (in terms of the amount of code) approach
+#adding the padding AFTER the cycle, because if we do it IN the cycle, then the kernel can't be applied without going out of edges of the output. We could cut the kernel inside, but damn that's mouthful/cumbersome (in terms of the amount of code) approach
 #It works! And I understand it. The next step is the actual image generation, using this structure. It seems like nothing difficult or unknown (yet), basically forward pass and backprop through FC and transposed concoluton.
 #OUTPUT: Output image's shape:  (3, 32, 32)
 
