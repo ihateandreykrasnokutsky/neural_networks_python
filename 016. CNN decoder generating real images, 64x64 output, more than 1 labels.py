@@ -19,8 +19,8 @@ from datetime import datetime
 # -----------------------------
 epochs = 10000
 latent_dim = 10
-learning_rate = 1
-target_size = (64, 64)  # final generated image size
+learning_rate = 10
+target_size = (256, 256)  # final generated image size
 
 # -----------------------------
 # Utility functions
@@ -161,18 +161,17 @@ class CNNGenerator:
         We create:
           - FC weight: latent_dim -> 256*4*4
           - 4 transpose-convs:
-                256 -> 128 channels (layers)
-                128 -> 64
-                 64 -> 32  
-                 64 -> 3 (RGB)
+                256 -> 3 channels (layers)
         """
         self.latent_dim = latent_dim
-        self.fc_weight = np.random.randn(latent_dim, 256*4*4) * 0.02
+        self.fc_weight = np.random.randn(latent_dim, 256*4*4) * 0.02 #4x4
 
-        self.ct1_weight = np.random.randn(256, 128, 4, 4) * 0.02
-        self.ct2_weight = np.random.randn(128, 64, 4, 4) * 0.02
-        self.ct3_weight = np.random.randn(64, 32, 4, 4) * 0.02
-        self.ct4_weight = np.random.randn(32, 3, 4, 4) * 0.02
+        self.ct1_weight = np.random.randn(256, 128, 4, 4) * 0.02 #8x8
+        self.ct2_weight = np.random.randn(128, 64, 4, 4) * 0.02 #16x16
+        self.ct3_weight = np.random.randn(64, 32, 4, 4) * 0.02 #32x32
+        self.ct4_weight = np.random.randn(32, 16, 4, 4) * 0.02 #64x64
+        self.ct5_weight = np.random.randn(16, 8, 4, 4) * 0.02 #128x128
+        self.ct6_weight = np.random.randn(8, 3, 4, 4) * 0.02 #256x256
 
     # -----------------------------
     # FORWARD PASS
@@ -200,8 +199,16 @@ class CNNGenerator:
         self.y3_relu=relu(self.y3)
 
         #Fourth
-        self.y4=conv_transpose2d_forward(self.y3_relu, self.ct4_weight)
-        self.out = tanh(self.y4)
+        self.y4 = conv_transpose2d_forward(self.y3_relu, self.ct4_weight)
+        self.y4_relu=relu(self.y4)
+
+        #Fifth
+        self.y5 = conv_transpose2d_forward(self.y4_relu, self.ct5_weight)
+        self.y5_relu=relu(self.y5)
+
+        #Sixth
+        self.y6=conv_transpose2d_forward(self.y5_relu, self.ct6_weight)
+        self.out = tanh(self.y6)
 
         return self.out
 
@@ -214,54 +221,54 @@ class CNNGenerator:
         """
 
         # Tanh layer
-        grad_y4 = grad_out * tanh_grad(self.y4)
+        grad_y6 = grad_out * tanh_grad(self.y6)
+        # ConvTranspose6
+        grad_y5_relu, grad_ct6 = conv_transpose2d_backward(self.y5_relu, self.ct6_weight, grad_y6)
 
+        # ReLU5
+        grad_y5 = grad_y5_relu * relu_grad(self.y5)
         # ConvTranspose4
-        grad_y3_relu, grad_ct4 = conv_transpose2d_backward(
-            self.y3_relu, self.ct4_weight, grad_y4
-        )
+        grad_y4_relu, grad_ct5 = conv_transpose2d_backward(self.y4_relu, self.ct5_weight, grad_y5)
+
+        # ReLU4
+        grad_y4 = grad_y4_relu * relu_grad(self.y4)
+        # ConvTranspose4
+        grad_y3_relu, grad_ct4 = conv_transpose2d_backward(self.y3_relu, self.ct4_weight, grad_y4)
 
         # ReLU3
         grad_y3 = grad_y3_relu * relu_grad(self.y3)
-
         # ConvTranspose3
-        grad_y2_relu, grad_ct3 = conv_transpose2d_backward(
-            self.y2_relu, self.ct3_weight, grad_y3
-        )
+        grad_y2_relu, grad_ct3 = conv_transpose2d_backward(self.y2_relu, self.ct3_weight, grad_y3)
 
         # ReLU2
         grad_y2 = grad_y2_relu * relu_grad(self.y2)
-
         # ConvTranspose2
-        grad_y1_relu, grad_ct2 = conv_transpose2d_backward(
-            self.y1_relu, self.ct2_weight, grad_y2
-        )
+        grad_y1_relu, grad_ct2 = conv_transpose2d_backward(self.y1_relu, self.ct2_weight, grad_y2)
 
         # ReLU1
         grad_y1 = grad_y1_relu * relu_grad(self.y1)
-
         # ConvTranspose1
-        grad_x1, grad_ct1 = conv_transpose2d_backward(
-            self.x1, self.ct1_weight, grad_y1
-        )
+        grad_x1, grad_ct1 = conv_transpose2d_backward(self.x1, self.ct1_weight, grad_y1)
 
         # FC layer gradient
         grad_fc = grad_x1.reshape(256*4*4)
         grad_fc_w = np.outer(self.z, grad_fc)
 
-        return grad_ct1, grad_ct2, grad_ct3, grad_ct4, grad_fc_w
+        return grad_ct1, grad_ct2, grad_ct3, grad_ct4, grad_ct5, grad_ct6, grad_fc_w
 
     # -----------------------------
     # Update weights
     # -----------------------------
     def step(self, grads):
-        grad_ct1, grad_ct2, grad_ct3, grad_ct4, grad_fc = grads
+        grad_ct1, grad_ct2, grad_ct3, grad_ct4, grad_ct5, grad_ct6, grad_fc = grads
 
         # Gradient descent
         self.ct1_weight -= learning_rate * grad_ct1
         self.ct2_weight -= learning_rate * grad_ct2
         self.ct3_weight -= learning_rate * grad_ct3
         self.ct4_weight -= learning_rate * grad_ct4
+        self.ct5_weight -= learning_rate * grad_ct5
+        self.ct6_weight -= learning_rate * grad_ct6
         self.fc_weight  -= learning_rate * grad_fc
 
 
@@ -308,4 +315,7 @@ print("Final output shape:", fake.shape)
 # MY COMMENTS
 # I added the correct path for images, changed the images to jpg format (png can save the 4th alpha channel that I don't need, jpg can't). The learning doesn't move the model anywhere during 136 epochs, 0.01 learning rate. Need to try 0.1 learning rate or higher, because the loss just dances around ~0.83566.
 # Now the point is to make it produce 64x64 images. Given that I didn't write and didn't understand the program fully, it won't be easy. But it's good enough idea to try.
+
 # It works, now I need it to use a few different images as labels, because CNNs are not for copying, but for understanding meaningful features. And then study it better, of course.
+# Adding more deconv layers (up to 6), cause 64x64 images suck, I want 256x256
+#I read about vectorization to speed up the process. I fall asleep, so do it a bit later.
