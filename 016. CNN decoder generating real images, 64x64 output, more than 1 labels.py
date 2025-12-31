@@ -19,7 +19,7 @@ from datetime import datetime
 # -----------------------------
 epochs = 10000
 latent_dim = 10
-learning_rate = 10
+learning_rate = 0.0001
 target_size = (256, 256)  # final generated image size
 
 # -----------------------------
@@ -319,3 +319,8 @@ print("Final output shape:", fake.shape)
 # It works, now I need it to use a few different images as labels, because CNNs are not for copying, but for understanding meaningful features. And then study it better, of course.
 # Adding more deconv layers (up to 6), cause 64x64 images suck, I want 256x256
 #I read about vectorization to speed up the process. I fall asleep, so do it a bit later.
+#some problem with 6 layers, it zeroes out the gradients (probably)
+
+#I've learned the forward deconv layer rather well. Next time study backward deconv and why does the big number of weights lead to very small (practically zero) weight updates. Maybe a more dynamic initialization of weights? Xavier or He. My weight init is just by multiplying by 0.2 for all kernels, this is a ridiculous.
+
+
