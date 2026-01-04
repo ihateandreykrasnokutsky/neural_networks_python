@@ -19,7 +19,7 @@ from datetime import datetime
 # -----------------------------
 epochs = 10000
 latent_dim = 10
-learning_rate = 0.0001
+learning_rate = 0.9
 target_size = (256, 256)  # final generated image size
 
 # -----------------------------
@@ -164,14 +164,14 @@ class CNNGenerator:
                 256 -> 3 channels (layers)
         """
         self.latent_dim = latent_dim
-        self.fc_weight = np.random.randn(latent_dim, 256*4*4) * 0.02 #4x4
+        self.fc_weight = np.random.randn(latent_dim, 256*4*4) * np.sqrt(2/(latent_dim+256)) #4x4 Xavier init with 2 instead of 6 in numerator
 
-        self.ct1_weight = np.random.randn(256, 128, 4, 4) * 0.02 #8x8
-        self.ct2_weight = np.random.randn(128, 64, 4, 4) * 0.02 #16x16
-        self.ct3_weight = np.random.randn(64, 32, 4, 4) * 0.02 #32x32
-        self.ct4_weight = np.random.randn(32, 16, 4, 4) * 0.02 #64x64
-        self.ct5_weight = np.random.randn(16, 8, 4, 4) * 0.02 #128x128
-        self.ct6_weight = np.random.randn(8, 3, 4, 4) * 0.02 #256x256
+        self.ct1_weight = np.random.randn(256, 128, 4, 4) * np.sqrt(2/(256+128)) #8x8 
+        self.ct2_weight = np.random.randn(128, 64, 4, 4) * np.sqrt(2/(128+64)) #16x16
+        self.ct3_weight = np.random.randn(64, 32, 4, 4) * np.sqrt(2/(64+32)) #32x32
+        self.ct4_weight = np.random.randn(32, 16, 4, 4) * np.sqrt(2/(32+16)) #64x64
+        self.ct5_weight = np.random.randn(16, 8, 4, 4) * np.sqrt(2/(16+8)) #128x128
+        self.ct6_weight = np.random.randn(8, 3, 4, 4) * np.sqrt(2/(8+3)) #256x256
 
     # -----------------------------
     # FORWARD PASS
@@ -322,5 +322,7 @@ print("Final output shape:", fake.shape)
 #some problem with 6 layers, it zeroes out the gradients (probably)
 
 #I've learned the forward deconv layer rather well. Next time study backward deconv and why does the big number of weights lead to very small (practically zero) weight updates. Maybe a more dynamic initialization of weights? Xavier or He. My weight init is just by multiplying by 0.2 for all kernels, this is a ridiculous.
+
+#Xavier init helps. I really need vectorization (and to understand backprop without vectorization). The learning for 256x256 images is very slow: 44 minutes, 54 epochs. It generates something I guess meaningful, but I just can't wait for 1 hour each time it makes something recognizable.
 
 
